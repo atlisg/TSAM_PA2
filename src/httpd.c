@@ -27,6 +27,7 @@ int main(int argc, char **argv)
         perror("1 argument needed");
         exit(1);
     }
+
     port = (int) atoi(argv[1]);
 
     /* Create and bind a UDP socket */
