@@ -1,9 +1,5 @@
-/* A UDP echo server with timeouts.
+/* A s is the time taken from your computerhttp server
  *
- * Note that you will not need to use select and the timeout for a
- * tftp server. However, select is also useful if you want to receive
- * from multiple sockets at the same time. Read the documentation for
- * select on how to do this (Hint: Iterate with FD_ISSET()).
  */
 
 #include <assert.h>
@@ -16,24 +12,37 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+
+#define LOGFILE "http.log"
 
 int main(int argc, char **argv)
 {
     int sockfd, port;
     struct sockaddr_in server, client;
     char message[512];
-
+    char date[20];
+    time_t t;
+    
+    /* Read in command line arguments */
     if(argc < 2){
         perror("1 argument needed");
         exit(1);
     }
-
     port = (int) atoi(argv[1]);
+    
+    /* Open log file */
+    FILE *flog = fopen(LOGFILE, "w");
+    t = time(NULL);
+    strftime(date, sizeof(date), "%FT%T", localtime(&t));
+    printf("%s\n", date);
+    fclose(flog);
 
     /* Create and bind a UDP socket */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
+
     /* Network functions need arguments in network byte order instead of
        host byte order. The macros htonl, htons convert the values, */
     server.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -79,7 +88,10 @@ int main(int argc, char **argv)
             ssize_t n = read(connfd, message, sizeof(message) - 1);
 
             /* Send the message back. */
-            write(connfd, message, (size_t) n);
+            if(write(connfd, message, (size_t) n) < 0){
+                perror("Write error");
+                exit(1);
+            }
 
             /* We should close the connection. */
             shutdown(connfd, SHUT_RDWR);
