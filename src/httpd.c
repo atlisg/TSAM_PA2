@@ -16,7 +16,7 @@
 #include <arpa/inet.h>
 #include <glib.h>
 
-#define LOGFILE "http.log"
+#define LOGFILE "httpd.log"
 
 int main(int argc, char **argv)
 {
@@ -33,12 +33,6 @@ int main(int argc, char **argv)
     }
     port = (int) atoi(argv[1]);
     
-    /* Open log file */
-    FILE *flog = fopen(LOGFILE, "w");
-    t = time(NULL);
-    strftime(date, sizeof(date), "%FT%T", localtime(&t));
-    fclose(flog);
-
     /* Create and bind a UDP socket */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     memset(&server, 0, sizeof(server));
@@ -82,19 +76,22 @@ int main(int argc, char **argv)
             int connfd;
             connfd = accept(sockfd, (struct sockaddr *) &client,
                     &len);
+
             char *client_addr = inet_ntoa(client.sin_addr);
             int client_port = ntohs(client.sin_port);
-            printf("%s : %s:%d <request method> <requested URL> : <response code>\n", date, client_addr, client_port);
- 
-            /* Receive one byte less than declared,
+           /* Receive one byte less than declared,
                because it will be zero-termianted
                below. */
             ssize_t n = read(connfd, message, sizeof(message) - 1);
             
-            char start_line[30], host[30], user_agent[30], accept[30], accept_language[30], connection[30];
-            sscanf(message, "%[^\n]\n %[^\n]\n %[^\n]\n %[^\n]\n %[^\n]\n %[^\n]\n", 
-                   start_line, host, user_agent, accept, accept_language, connection);
-            printf("start_line: %s\nhost: %s\nuser_agent: %s\naccept: %s\naccept_language: %sconnection: %s", start_line, host, user_agent, accept, accept_language, connection);
+            char line[50];
+            int i;
+            for (i = 0; message[i] != '\r'; i++) {
+                line[i] = message[i];
+            }
+            char method[30], URL[30], prot[30];
+            sscanf(line, "%s %s %s", method, URL, prot);
+
             /* Send the message back. */
             if(write(connfd, message, (size_t) n) < 0){
                 perror("Write error");
@@ -104,6 +101,14 @@ int main(int argc, char **argv)
             /* We should close the connection. */
             shutdown(connfd, SHUT_RDWR);
             close(connfd);
+
+            /* Open log file */
+            FILE *flog = fopen(LOGFILE, "a");
+            t = time(NULL);
+            strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
+            fprintf(flog, "%s : %s:%d %s %s : <response code>\n",
+                date, client_addr, client_port, method, URL);
+            fclose(flog);
 
             /* Zero terminate the message, otherwise
                printf may access memory outside of the
