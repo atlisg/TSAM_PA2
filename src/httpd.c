@@ -84,13 +84,57 @@ int main(int argc, char **argv)
                below. */
             ssize_t n = read(connfd, message, sizeof(message) - 1);
             
+            /* Parse the Request Line */
             char line[50];
-            int i;
+            int i, j;
             for (i = 0; message[i] != '\r'; i++) {
                 line[i] = message[i];
             }
-            char method[30], URL[30], prot[30];
-            sscanf(line, "%s %s %s", method, URL, prot);
+            char method[30], URL[30], version[30];
+            sscanf(line, "%s %s %s", method, URL, version);
+
+            /* Loop through the Header lines and parse them into a hash table */
+            GHashTable *ht = g_hash_table_new(NULL, NULL);
+            gboolean EOH = FALSE, keyRead = TRUE;
+            char *key = NULL, *value = NULL;
+            int start;
+            for(i += 2, start = i; !EOH; i++) {
+                if (message[i] == '\r') {
+                    if (message[i+2] == '\r') {
+                        EOH = TRUE;
+                    }
+
+                    value = malloc(i - start + 1);
+                    for (j = 0; start < i; start++, j++) {
+                        value[j] = message[start];
+                    }
+                    value[j] = '\0';
+                    i++;
+                    start = i + 1;
+                    keyRead = TRUE;
+                    g_hash_table_insert(ht, (gpointer) key, (gpointer) value);
+                } else if (message[i] == ':' && keyRead) {
+                    keyRead = FALSE;
+                    key = malloc(i - start + 1);
+                    for (j = 0; start < i; start++, j++) {
+                        key[j] = message[start];
+                    }
+                    key[j] = '\0';
+                    i++;
+                    start = i + 1;
+                }
+            }
+
+            /* Trying to iterate through the create table and print out the values */
+            printf("Going to iterate through the table of size %d\n--------------------------------------\n", g_hash_table_size(ht));
+            GHashTableIter iter;
+            gpointer key2, value2;
+
+            g_hash_table_iter_init(&iter, ht);
+            while (g_hash_table_iter_next(&iter, &key2, &value2)) {
+                printf("Current Key: %s\nCurrent Value: %s\n\n", key2, value2);
+            }
+            printf("--------------------------------------\nIteration finished.\n\n");
 
             /* Send the message back. */
             if(write(connfd, message, (size_t) n) < 0){

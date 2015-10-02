@@ -1,2 +1,3 @@
 src/httpd
 http.log
+httpd.log
