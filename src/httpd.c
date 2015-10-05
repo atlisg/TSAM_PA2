@@ -141,9 +141,22 @@ int main(int argc, char **argv)
             }
 
             //print_ht(ht);
+            // Creating the html file in memory
+            int bufSize = 194;
+            char *mystr = "<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n";
+            char *buf = malloc(bufSize);
 
-            /* Send the message back. */
+            snprintf(buf, bufSize, "%s", mystr);
+            //printf("%s\n", buf);
+
+            /* Send the header */
             if(write(connfd, message, (size_t) n) < 0){
+                perror("Write error");
+                exit(1);
+            }
+
+            /* Send  the html file (if asked for) */
+            if(write(connfd, buf, bufSize) < 0){
                 perror("Write error");
                 exit(1);
             }
