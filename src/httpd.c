@@ -22,12 +22,28 @@
 void print_ht(GHashTable *ht) {
     printf("Going to iterate through the table of size %d\n--------------------------------------\n", g_hash_table_size(ht));
     GHashTableIter iter;
-    gpointer key, value;
     g_hash_table_iter_init(&iter, ht);
+    gpointer key, value;
     while (g_hash_table_iter_next(&iter, &key, &value)) {
         printf("Current Key: %s\nCurrent Value: %s\n\n", key, value);
     }
     printf("--------------------------------------\nIteration finished.\n\n");
+}
+
+/* Iterates through the hash table and returns a value if the key is found */
+char* get_value(GHashTable *ht, char *keyToFind) {
+    GHashTableIter iter;
+    g_hash_table_iter_init(&iter, ht);
+    gpointer key, value;
+    
+    GString *returnValue = NULL;
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        if (strcmp(key, keyToFind) == 0) {
+            returnValue = g_string_new(value);
+        }
+    }
+
+    return returnValue->str;
 }
 
 void build_response_hdr(GHashTable *ht, GString *res_hdr)
@@ -111,6 +127,7 @@ int main(int argc, char **argv)
                because it will be zero-termianted
                below. */
             ssize_t n = read(connfd, message, sizeof(message) - 1);
+            message[n] = '\0'; 
             
             /* Parse the Request Line */
             char line[150];
@@ -131,13 +148,12 @@ int main(int argc, char **argv)
             for (i++; line[i] != '\0'; i++) {
                 g_string_append_c(version, line[i]);
             }
-            //printf("method: %s, URL: %s, version: %s\n", method->str, URL->str, version->str);
 
             /* Loop through the received header lines and parse them into a hash table */
             GHashTable *ht = g_hash_table_new(NULL, NULL);
             gboolean EOH = FALSE, keyRead = TRUE;
-            char *key = NULL, *value = NULL;
             int start;
+            GString *key = g_string_new(NULL), *value = g_string_new(NULL);
             for(i += 2, start = i; !EOH; i++) {
                 /* end of the line */
                 if (message[i] == '\r') {
@@ -145,44 +161,58 @@ int main(int argc, char **argv)
                     if (message[i+2] == '\r') {
                         EOH = TRUE;
                     }
-                    value = malloc(i - start + 1);
+                    value = g_string_new(NULL);
                     for (j = 0; start < i; start++, j++) {
-                        value[j] = message[start];
+                        g_string_append_c(value, message[start]);
                     }
-                    value[j] = '\0';
                     i++;
                     start = i + 1;
                     keyRead = TRUE;
-                    g_hash_table_insert(ht, (gpointer) key, (gpointer) value);
+                    g_hash_table_insert(ht, key->str, value->str);
                 } else if (message[i] == ':' && keyRead) {
                     keyRead = FALSE;
-                    key = malloc(i - start + 1);
+                    key = g_string_new(NULL);
                     for (j = 0; start < i; start++, j++) {
-                        key[j] = message[start];
+                        g_string_append_c(key, message[start]);
                     }
-                    key[j] = '\0';
                     i++;
                     start = i + 1;
                 }
             }
 
             GString *content = g_string_new(NULL);
-            for (i += 4; i < sizeof(message); i++) {
+            for (i += 2; i < sizeof(message); i++) {
                 g_string_append_c(content, message[i]);
             }
+            g_string_append_c(content, '\0');
 
             /* Creating the html file in memory */
             GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
             if (g_strcmp0(method->str, "POST") == 0) {
-                g_string_insert(html, 120, content->str);
-                gpointer value = g_hash_table_lookup(ht, "Accept\0");
-                printf("value: %s\n", value);
+                GString *lineToAdd = g_string_new("\n\t<p>");
+                g_string_append(lineToAdd, content->str);
+                g_string_append(lineToAdd, "</p>\n");
+                g_string_insert(html, 176, lineToAdd->str);
             }
-            print_ht(ht);
+
+            t = time(NULL);
+            strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
+            
+            /* Create a new hash table with data to put into response header */
+            GHashTable *hashSponse = g_hash_table_new(NULL, NULL);
+            g_hash_table_insert(hashSponse, "Date", date);
+            g_hash_table_insert(hashSponse, "Content-Type", "text/html; charset=iso-8859-1");
+            g_hash_table_insert(hashSponse, "Server", "Nilli/0.2000");
+            char cl[10];
+            sprintf(cl, "%d", html->len);
+            g_hash_table_insert(hashSponse, "Content-Length", cl);
+            print_ht(hashSponse);
+
+
             /* Make the response header */
             GString *res = g_string_new(version->str);
             g_string_append(res, " 200 OK\r\n");
-            build_response_hdr(ht, res);
+            build_response_hdr(hashSponse, res);
             g_string_append(res, html->str);
             printf("res: \n%s", res->str);
             printf("res-len: %d\n", res->len);
@@ -193,20 +223,12 @@ int main(int argc, char **argv)
                 exit(1);
             }
 
-            /* Send  the html file (if asked for)
-            if(write(connfd, html->str, html->len) < 0) {
-                perror("Write error");
-                exit(1);
-            }
-
             /* We should close the connection. */
             shutdown(connfd, SHUT_RDWR);
             close(connfd);
 
             /* Open log file */
             FILE *flog = fopen(LOGFILE, "a");
-            t = time(NULL);
-            strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
             fprintf(flog, "%s : %s:%d %s %s : 200 OK\n",
                 date, client_addr, client_port, method, URL);
             fclose(flog);
