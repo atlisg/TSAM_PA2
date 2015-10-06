@@ -213,7 +213,9 @@ int main(int argc, char **argv)
             GString *res = g_string_new(version->str);
             g_string_append(res, " 200 OK\r\n");
             build_response_hdr(hashSponse, res);
-            g_string_append(res, html->str);
+            if (g_strcmp0(method->str, "HEAD") != 0) {
+                g_string_append(res, html->str);
+            }
             printf("res: \n%s", res->str);
             printf("res-len: %d\n", res->len);
 
@@ -230,7 +232,7 @@ int main(int argc, char **argv)
             /* Open log file */
             FILE *flog = fopen(LOGFILE, "a");
             fprintf(flog, "%s : %s:%d %s %s : 200 OK\n",
-                date, client_addr, client_port, method, URL);
+                date, client_addr, client_port, method->str, URL->str);
             fclose(flog);
 
             /* Zero terminate the message, otherwise
