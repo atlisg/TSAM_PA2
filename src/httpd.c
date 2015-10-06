@@ -36,7 +36,7 @@ char* get_value(GHashTable *ht, char *keyToFind) {
     g_hash_table_iter_init(&iter, ht);
     gpointer key, value;
     
-    GString *returnValue = NULL;
+    GString *returnValue = g_string_new(NULL);
     while (g_hash_table_iter_next(&iter, &key, &value)) {
         if (strcmp(key, keyToFind) == 0) {
             returnValue = g_string_new(value);
@@ -67,6 +67,7 @@ int main(int argc, char **argv)
     char message[512];
     char date[20];
     time_t t;
+    gboolean open_socket = FALSE;
     
     /* Read in command line arguments */
     if(argc < 2){
@@ -95,13 +96,14 @@ int main(int argc, char **argv)
         fd_set rfds;
         struct timeval tv;
         int retval;
-
+        int connfd;
+        
         /* Check whether there is data on the socket fd. */
         FD_ZERO(&rfds);
         FD_SET(sockfd, &rfds);
 
         /* Wait for five seconds. */
-        tv.tv_sec = 5;
+        tv.tv_sec = 30;
         tv.tv_usec = 0;
         retval = select(sockfd + 1, &rfds, NULL, NULL, &tv);
 
@@ -115,9 +117,9 @@ int main(int argc, char **argv)
             socklen_t len = (socklen_t) sizeof(client);
 
             /* For TCP connectios, we first have to accept. */
-            int connfd;
             connfd = accept(sockfd, (struct sockaddr *) &client,
                     &len);
+            open_socket = TRUE;
 
             /* put client address and port nr intp variables */
             char *client_addr = inet_ntoa(client.sin_addr);
@@ -225,9 +227,16 @@ int main(int argc, char **argv)
                 exit(1);
             }
 
-            /* We should close the connection. */
-            shutdown(connfd, SHUT_RDWR);
-            close(connfd);
+            /* We should close the connection if requested. */
+            char *connec = get_value(ht, "Connection");
+            printf("connec: %s\n", connec);
+            if (connec != NULL && (strcmp(connec, "close") == 0 || 
+                strcmp(connec, "keep-alive") != 0)) { 
+                shutdown(connfd, SHUT_RDWR);
+                close(connfd);
+                printf("You have been terminated by the terminator\n");
+                open_socket = FALSE;
+            }
 
             /* Open log file */
             FILE *flog = fopen(LOGFILE, "a");
@@ -243,7 +252,13 @@ int main(int argc, char **argv)
             fprintf(stdout, "Received:\n%s\n", message);
             fflush(stdout);
         } else {
-            fprintf(stdout, "No message in five seconds.\n");
+            if (open_socket) {
+                shutdown(connfd, SHUT_RDWR);
+                close(connfd);
+                open_socket = FALSE;
+                printf("Termination of the fraction erection\n");
+            }
+            fprintf(stdout, "No message in 30 seconds.\n");
             fflush(stdout);
         }
     }
