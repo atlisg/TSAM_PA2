@@ -182,11 +182,34 @@ int main(int argc, char **argv)
                 }
             }
 
+            /* Fetch content from message */
             GString *content = g_string_new(NULL);
             for (i += 2; i < sizeof(message); i++) {
                 g_string_append_c(content, message[i]);
             }
             g_string_append_c(content, '\0');
+
+            /* split URL into args */
+            GString *uri = g_string_new(NULL);
+            GString *query = g_string_new(NULL);
+            gboolean isQ = FALSE;
+            for (i = 1; i < URL->len; i++) {
+                if (URL->str[i] == '?') {
+                    isQ = TRUE;
+                } else if (isQ) {
+                    g_string_append_c(query, URL->str[i]);
+                } else {
+                    g_string_append_c(uri, URL->str[i]);
+                }
+            }
+            printf("uri: %s\n", uri->str);
+            if (g_strcmp0(uri->str, "test") == 0) {
+                gchar **arse = g_strsplit(query->str, "&", 5);
+                printf("query: %s\n", query->str);
+                for (i = 0; i < 2; i++) {
+                    printf("arse[%d]: %s\n", i, arse[i]);
+                }
+            }
 
             /* Creating the html file in memory */
             GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
@@ -195,7 +218,7 @@ int main(int argc, char **argv)
                 g_string_append(lineToAdd, content->str);
                 g_string_append(lineToAdd, "</p>\n");
                 g_string_insert(html, 176, lineToAdd->str);
-            }
+            } 
 
             t = time(NULL);
             strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
@@ -208,7 +231,7 @@ int main(int argc, char **argv)
             char cl[10];
             sprintf(cl, "%d", html->len);
             g_hash_table_insert(hashSponse, "Content-Length", cl);
-            print_ht(hashSponse);
+            //print_ht(hashSponse);
 
 
             /* Make the response header */
@@ -218,8 +241,8 @@ int main(int argc, char **argv)
             if (g_strcmp0(method->str, "HEAD") != 0) {
                 g_string_append(res, html->str);
             }
-            printf("res: \n%s", res->str);
-            printf("res-len: %d\n", res->len);
+            //printf("res: \n%s", res->str);
+            //printf("res-len: %d\n", res->len);
 
             /* Send the header */
             if(write(connfd, res->str, res->len) < 0) {
@@ -229,12 +252,12 @@ int main(int argc, char **argv)
 
             /* We should close the connection if requested. */
             char *connec = get_value(ht, "Connection");
-            printf("connec: %s\n", connec);
+            //printf("connec: %s\n", connec);
             if (connec != NULL && (strcmp(connec, "close") == 0 || 
                 strcmp(connec, "keep-alive") != 0)) { 
                 shutdown(connfd, SHUT_RDWR);
                 close(connfd);
-                printf("You have been terminated by the terminator\n");
+                //printf("You have been terminated by the terminator\n");
                 open_socket = FALSE;
             }
 
@@ -249,14 +272,14 @@ int main(int argc, char **argv)
                string. */
             message[n] = '\0';
             /* Print the message to stdout and flush. */
-            fprintf(stdout, "Received:\n%s\n", message);
+            //fprintf(stdout, "Received:\n%s\n", message);
             fflush(stdout);
         } else {
             if (open_socket) {
                 shutdown(connfd, SHUT_RDWR);
                 close(connfd);
                 open_socket = FALSE;
-                printf("Termination of the fraction erection\n");
+                //printf("Termination of the fraction erection\n");
             }
             fprintf(stdout, "No message in 30 seconds.\n");
             fflush(stdout);
