@@ -189,36 +189,52 @@ int main(int argc, char **argv)
             }
             g_string_append_c(content, '\0');
 
-            /* split URL into args */
+            /* Creating the html file in memory */
+            GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
+            int insert_point = 176;
+            GString *lineToAdd = g_string_new(NULL);
+            if (g_strcmp0(method->str, "POST") == 0) {
+                g_string_append(lineToAdd, "\n\t<p>");
+                g_string_append(lineToAdd, content->str);
+                g_string_append(lineToAdd, "</p>\n");
+            } 
+
+           /* split URL into args */
             GString *uri = g_string_new(NULL);
             GString *query = g_string_new(NULL);
             gboolean isQ = FALSE;
+            int argcnt = 1;
             for (i = 1; i < URL->len; i++) {
                 if (URL->str[i] == '?') {
                     isQ = TRUE;
                 } else if (isQ) {
                     g_string_append_c(query, URL->str[i]);
+                    if (URL->str[i] == '&') argcnt++;
                 } else {
                     g_string_append_c(uri, URL->str[i]);
                 }
             }
             printf("uri: %s\n", uri->str);
             if (g_strcmp0(uri->str, "test") == 0) {
-                gchar **arse = g_strsplit(query->str, "&", 5);
+                gchar **arse = g_strsplit(query->str, "&", 0);
                 printf("query: %s\n", query->str);
-                for (i = 0; i < 2; i++) {
+                g_string_append(lineToAdd, "\n\t<p>");
+                for (i = 0; i < argcnt; i++) {
                     printf("arse[%d]: %s\n", i, arse[i]);
+                    g_string_append(lineToAdd, arse[i]);
+                    g_string_append(lineToAdd, "<br>");
+                }
+                g_string_append(lineToAdd, "</p>\n");
+            } else if (g_strcmp0(uri->str, "color") == 0) {
+                insert_point = 142;
+                if (query->str[0] == 'b' && query->str[1] == 'g') {
+                    g_string_append(lineToAdd, " style=\"background-color: ");
+                    gchar **bg = g_strsplit(query->str, "=", 0);
+                    g_string_append(lineToAdd, bg[1]);
+                    g_string_append(lineToAdd, "\"");
                 }
             }
-
-            /* Creating the html file in memory */
-            GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
-            if (g_strcmp0(method->str, "POST") == 0) {
-                GString *lineToAdd = g_string_new("\n\t<p>");
-                g_string_append(lineToAdd, content->str);
-                g_string_append(lineToAdd, "</p>\n");
-                g_string_insert(html, 176, lineToAdd->str);
-            } 
+            g_string_insert(html, insert_point, lineToAdd->str);
 
             t = time(NULL);
             strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
