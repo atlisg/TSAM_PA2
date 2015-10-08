@@ -40,10 +40,11 @@ char* get_value(GHashTable *ht, char *keyToFind) {
     while (g_hash_table_iter_next(&iter, &key, &value)) {
         if (strcmp(key, keyToFind) == 0) {
             returnValue = g_string_new(value);
+            return returnValue->str;
         }
     }
 
-    return returnValue->str;
+    return NULL;
 }
 
 void build_response_hdr(GHashTable *ht, GString *res_hdr)
@@ -153,6 +154,8 @@ int main(int argc, char **argv)
 
             /* Loop through the received header lines and parse them into a hash table */
             GHashTable *ht = g_hash_table_new(NULL, NULL);
+            /* Response header hashtable */
+            GHashTable *hashSponse = g_hash_table_new(NULL, NULL);
             gboolean EOH = FALSE, keyRead = TRUE;
             int start;
             GString *key = g_string_new(NULL), *value = g_string_new(NULL);
@@ -181,6 +184,7 @@ int main(int argc, char **argv)
                     start = i + 1;
                 }
             }
+            print_ht(ht);
 
             /* Fetch content from message */
             GString *content = g_string_new(NULL);
@@ -227,12 +231,28 @@ int main(int argc, char **argv)
                 g_string_append(lineToAdd, "</p>\n");
             } else if (g_strcmp0(uri->str, "color") == 0) {
                 insert_point = 142;
+                gchar **bg;
+                char* color;
                 if (query->str[0] == 'b' && query->str[1] == 'g') {
-                    g_string_append(lineToAdd, " style=\"background-color: ");
-                    gchar **bg = g_strsplit(query->str, "=", 0);
-                    g_string_append(lineToAdd, bg[1]);
-                    g_string_append(lineToAdd, "\"");
+                    bg = g_strsplit(query->str, "=", 0);
+                    GString *cookie = g_string_new("color=");
+                    g_string_append(cookie, bg[1]);
+                    color = bg[1];
+                    g_hash_table_insert(hashSponse, "Set-cookie", cookie->str);
+                } else {
+                    char *cookieValue = get_value(ht, "Cookie");
+                    if (cookieValue != NULL) {
+                        printf("Found %s!\n", cookieValue);
+                        bg = g_strsplit(g_string_new(cookieValue)->str, "=", 0);
+                        color = bg[1];
+                    } else {
+                        color = "white";
+                    }
                 }
+                g_string_append(lineToAdd, " style=\"background-color: ");
+                g_string_append(lineToAdd, color);
+                g_string_append(lineToAdd, "\"");
+ 
             }
             g_string_insert(html, insert_point, lineToAdd->str);
 
@@ -240,7 +260,6 @@ int main(int argc, char **argv)
             strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
             
             /* Create a new hash table with data to put into response header */
-            GHashTable *hashSponse = g_hash_table_new(NULL, NULL);
             g_hash_table_insert(hashSponse, "Date", date);
             g_hash_table_insert(hashSponse, "Content-Type", "text/html; charset=iso-8859-1");
             g_hash_table_insert(hashSponse, "Server", "Nilli/0.2000");
@@ -288,7 +307,7 @@ int main(int argc, char **argv)
                string. */
             message[n] = '\0';
             /* Print the message to stdout and flush. */
-            //fprintf(stdout, "Received:\n%s\n", message);
+            fprintf(stdout, "Received:\n%s\n", message);
             fflush(stdout);
         } else {
             if (open_socket) {
