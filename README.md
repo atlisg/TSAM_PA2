@@ -12,9 +12,15 @@ curl -i http://localhost:*PORT*
 POST REQUEST (with header):  
 curl -i -d "content" http://localhost:*PORT* 
 
-
 HEAD REQUEST:  
 curl -i -X HEAD http://localhost:*PORT*
+
+Connection header:
+curl -H "Connection: close" http://localhost:*PORT*
+
+or
+
+curl -H "Connection: keep-alive" http://localhost:*PORT*
 
 test page:  
 curl -i http://localhost:*PORT*/test?arg1=foo&arg2=bar 
