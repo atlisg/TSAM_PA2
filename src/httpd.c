@@ -296,19 +296,20 @@ int main(int argc, char **argv)
         struct timeval tv;
         int retval;
         int connfd;
-
-        rfds = afds;
         
-        /* Wait for five seconds. */
-        tv.tv_sec = 30;
+        tv.tv_sec = 30; // Wait for 30 seconds
         tv.tv_usec = 0;
+        
+        rfds = afds;
         retval = select(FD_SETSIZE, &rfds, NULL, NULL, &tv);
 
         if (retval == -1) {
             perror("select()");
         } else if (retval > 0) {
+            /* Loop through sockets with pending data, and service */
             for(i = 0; i < FD_SETSIZE; ++i){
                 if(FD_ISSET(i, &rfds)){
+                    /* Connecting on original socket */
                     if(i == sockfd){
                         /* Data is available, receive it. */
                         assert(FD_ISSET(sockfd, &rfds));
@@ -320,14 +321,22 @@ int main(int argc, char **argv)
                         connfd = accept(sockfd, (struct sockaddr *) &client, &len);
                         open_socket = TRUE;
 
-                        /* put client address and port nr intp variables */
+                        /* put client address and port nr intp variables 
+                           TODO: WE NEED TO FIX THIS, WE LOSE THE DATA, NEEDED IN LOG FILE */
                         char *client_addr = inet_ntoa(client.sin_addr);
                         int client_port = ntohs(client.sin_port);
+
+                        /* Add the file descriptor to the active set */
                         FD_SET(connfd, &afds);
                     }
+                    /* Socket is already connected */
                     else{
                         read_from_client(i);
+
+                        /* Terminate the socket */
                         close(i);
+
+                        /* Remove the file descriptor from the active set */
                         FD_CLR(i, &afds);
                     }
                 }
@@ -339,8 +348,7 @@ int main(int argc, char **argv)
                 open_socket = FALSE;
                 //printf("Termination of the fraction erection\n");
             }
-            fprintf(stdout, "No message in 30 seconds.\n");
-            fflush(stdout);
+            printf("No message in 30 seconds.\n");
         }
     }
 }
