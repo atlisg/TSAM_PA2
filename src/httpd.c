@@ -17,17 +17,38 @@
 #include <glib.h>
 
 #define LOGFILE "httpd.log"
+#define HTMLTEMPLATE "<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n"
+ 
+
+/**
+ *  Prints the header string
+ *
+ *  @param Char message[512]    Header string
+ *  @param int n                Size of header
+**/
+void print_header(char message[512], int n){
+    /* Zero terminate the message, otherwise
+       printf may access memory outside of the
+       string. */
+    message[n] = '\0';
+    /* Print the message  */
+    printf("%s\n", message);
+    printf("----------------\n");
+}
+
 
 /* Iterate through the hash table and print out the values */
 void print_ht(GHashTable *ht) {
-    printf("Going to iterate through the table of size %d\n--------------------------------------\n", g_hash_table_size(ht));
     GHashTableIter iter;
     g_hash_table_iter_init(&iter, ht);
     gpointer key, value;
+
+    printf("--------------------------------\n");
+    printf("Iterate hash table of size: %d\n", g_hash_table_size(ht));
     while (g_hash_table_iter_next(&iter, &key, &value)) {
-        printf("Current Key: %s\nCurrent Value: %s\n\n", (char*) key, (char*) value);
+        printf("%s: %s\n", (char*) key, (char*) value);
     }
-    printf("--------------------------------------\nIteration finished.\n\n");
+    printf("--------------------------------------\n");
 }
 
 /* Iterates through the hash table and frees all memory allocated for keys and values */
@@ -42,7 +63,12 @@ void destroy_ht(GHashTable *ht) {
     g_hash_table_destroy(ht);
 }
 
-/* Iterates through the hash table and returns a value if the key is found */
+/**
+ *  Iterates through the hash table and returns a value if the key is found
+ *  
+ *  @param GHashTable   A glib 2.0 hash table, contains header key/values
+ *  @param char         Hash table key being requested
+**/
 char* get_value(GHashTable *ht, char *keyToFind) {
     GHashTableIter iter;
     g_hash_table_iter_init(&iter, ht);
@@ -59,6 +85,13 @@ char* get_value(GHashTable *ht, char *keyToFind) {
     return NULL;
 }
 
+
+/**
+ *  Builds the response header for the http
+ *
+ *  @param GHashTable   A glib 2.0 hash table, contains header key/values
+ *  @param GString      A glib 2.0 string, a reference to the header string
+**/
 void build_response_hdr(GHashTable *ht, GString *res_hdr)
 {
     GHashTableIter iter;
@@ -73,6 +106,11 @@ void build_response_hdr(GHashTable *ht, GString *res_hdr)
     g_string_append(res_hdr, "\r\n\0");
 }
 
+/**
+ *  Reads the data from a file descriptor, proccesses it, and sends appropriate response
+ *  
+ *  @param int  A file descriptor
+**/
 void read_from_client(int fds){
     char message[512];
     char date[20];
@@ -84,6 +122,8 @@ void read_from_client(int fds){
        below. */
     ssize_t n = read(fds, message, sizeof(message) - 1);
     message[n] = '\0'; 
+    printf("Received:\n");
+    print_header(message, n);
 
     /* Parse the Request Line */
     char line[150];
@@ -146,7 +186,7 @@ void read_from_client(int fds){
     g_string_append_c(content, '\0');
 
     /* Creating the html file in memory */
-    GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
+    GString *html = g_string_new(HTMLTEMPLATE);
     int insert_point = 176;
     GString *lineToAdd = g_string_new(NULL);
     if (g_strcmp0(method->str, "POST") == 0) {
@@ -170,7 +210,7 @@ void read_from_client(int fds){
             g_string_append_c(uri, URL->str[i]);
         }
     }
-    printf("uri: %s\n", uri->str);
+    //printf("uri: %s\n", uri->str);
     if (g_strcmp0(uri->str, "test") == 0) {
         gchar **arse = g_strsplit(query->str, "&", 0);
         printf("query: %s\n", query->str);
@@ -218,19 +258,18 @@ void read_from_client(int fds){
     char cl[10];
     sprintf(cl, "%d", (int)html->len);
     g_hash_table_insert(hashSponse, g_string_new("Content-Length")->str, g_string_new(cl)->str);
-    print_ht(hashSponse);
-
+    //print_ht(hashSponse);
 
     /* Make the response header */
     GString *res = g_string_new(version->str);
     g_string_append(res, " 200 OK\r\n");
     build_response_hdr(hashSponse, res);
     if (g_strcmp0(method->str, "HEAD") != 0) {
+        printf("Sending:\n");
+        print_header(res->str, res->len);
         g_string_append(res, html->str);
     }
-    //printf("res: \n%s", res->str);
-    //printf("res-len: %d\n", res->len);
-
+    
     /* Send the header */
     if(write(fds, res->str, res->len) < 0) {
         perror("Write error");
@@ -246,15 +285,12 @@ void read_from_client(int fds){
     }
 
     /* Open log file */
-    FILE *flog = fopen(LOGFILE, "a");
-    fprintf(flog, "%s : %s:%d %s %s : 200 OK\n",
-            date, "000.000.000.000", 1230, method->str, URL->str);
+    FILE *flog = fopen(LOGFILE, "w");
+    fprintf(flog, 
+            "%s : %s:%d %s %s : 200 OK\n",
+            date, "---.---.---.---", 1234, method->str, URL->str);
     fclose(flog);
 
-    /* Zero terminate the message, otherwise
-       printf may access memory outside of the
-       string. */
-    message[n] = '\0';
     /* Print the message to stdout and flush. */
     fprintf(stdout, "Received:\n%s\n", message);
     fflush(stdout);
@@ -325,20 +361,21 @@ int main(int argc, char **argv)
         struct timeval tv;
         int retval;
         int connfd;
-
-        rfds = afds;
         
-        /* Wait for five seconds. */
-        tv.tv_sec = 30;
+        tv.tv_sec = 30; // Wait for 30 seconds
         tv.tv_usec = 0;
+        
+        rfds = afds;
         retval = select(FD_SETSIZE, &rfds, NULL, NULL, &tv);
 
         if (retval == -1) {
             perror("select()");
         } else if (retval > 0) {
-            for (i = 0; i < FD_SETSIZE; ++i){
-                if (FD_ISSET(i, &rfds)){
-                    if (i == sockfd){
+            /* Loop through sockets with pending data, and service */
+            for(i = 0; i < FD_SETSIZE; ++i){
+                if(FD_ISSET(i, &rfds)){
+                    /* Connecting on original socket */
+                    if(i == sockfd){
                         /* Data is available, receive it. */
                         assert(FD_ISSET(sockfd, &rfds));
 
@@ -349,25 +386,33 @@ int main(int argc, char **argv)
                         connfd = accept(sockfd, (struct sockaddr *) &client, &len);
                         open_socket = TRUE;
 
-                        /* put client address and port nr intp variables */
+                        /* put client address and port nr intp variables 
+                           TODO: WE NEED TO FIX THIS, WE LOSE THE DATA, NEEDED IN LOG FILE */
                         char *client_addr = inet_ntoa(client.sin_addr);
                         int client_port = ntohs(client.sin_port);
+
+                        /* Add the file descriptor to the active set */
                         FD_SET(connfd, &afds);
                     } else {
+                    /* Socket is already connected */
                         read_from_client(i);
+
+                        /* Terminate the socket */
                         close(i);
+
+                        /* Remove the file descriptor from the active set */
                         FD_CLR(i, &afds);
                     }
                 }
             }
         } else {
+            // TODO: Need to fix the timeout somehow 
             if (open_socket) {
                 shutdown(connfd, SHUT_RDWR);
                 close(connfd);
                 open_socket = FALSE;
             }
-            fprintf(stdout, "No message in 30 seconds.\n");
-            fflush(stdout);
+            printf("No message in 30 seconds.\n");
         }
     }
 }
