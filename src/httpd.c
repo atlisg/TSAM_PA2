@@ -276,7 +276,7 @@ void read_from_client(int fds){
     }
 
     /* Open log file */
-    FILE *flog = fopen(LOGFILE, "a");
+    FILE *flog = fopen(LOGFILE, "w");
     fprintf(flog, 
             "%s : %s:%d %s %s : 200 OK\n",
             date, "---.---.---.---", 1234, method->str, URL->str);
