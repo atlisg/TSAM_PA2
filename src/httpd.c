@@ -18,16 +18,29 @@
 
 #define LOGFILE "httpd.log"
 
+void print_header(char message[512], int n){
+    /* Zero terminate the message, otherwise
+       printf may access memory outside of the
+       string. */
+    message[n] = '\0';
+    /* Print the message to stdout and flush. */
+    printf("%s\n", message);
+    printf("----------------\n");
+}
+
+
 /* Iterate through the hash table and print out the values */
 void print_ht(GHashTable *ht) {
-    printf("Going to iterate through the table of size %d\n--------------------------------------\n", g_hash_table_size(ht));
     GHashTableIter iter;
     g_hash_table_iter_init(&iter, ht);
     gpointer key, value;
+
+    printf("--------------------------------\n");
+    printf("Iterate hash table of size: %d\n", g_hash_table_size(ht));
     while (g_hash_table_iter_next(&iter, &key, &value)) {
         printf("%s: %s\n", (char*) key, (char*) value);
     }
-    printf("--------------------------------------\nIteration finished.\n\n");
+    printf("--------------------------------------\n");
 }
 
 /* Iterates through the hash table and returns a value if the key is found */
@@ -72,6 +85,8 @@ void read_from_client(int fds){
        below. */
     ssize_t n = read(fds, message, sizeof(message) - 1);
     message[n] = '\0'; 
+    printf("Received:\n");
+    print_header(message, n);
 
     /* Parse the Request Line */
     char line[150];
@@ -125,7 +140,6 @@ void read_from_client(int fds){
             start = i + 1;
         }
     }
-    //print_ht(ht);
 
     /* Fetch content from message */
     GString *content = g_string_new(NULL);
@@ -159,7 +173,7 @@ void read_from_client(int fds){
             g_string_append_c(uri, URL->str[i]);
         }
     }
-    printf("uri: %s\n", uri->str);
+    //printf("uri: %s\n", uri->str);
     if (g_strcmp0(uri->str, "test") == 0) {
         gchar **arse = g_strsplit(query->str, "&", 0);
         printf("query: %s\n", query->str);
@@ -207,7 +221,7 @@ void read_from_client(int fds){
     char cl[10];
     sprintf(cl, "%d", (int)html->len);
     g_hash_table_insert(hashSponse, "Content-Length", cl);
-    print_ht(hashSponse);
+    //print_ht(hashSponse);
 
 
     /* Make the response header */
@@ -215,11 +229,11 @@ void read_from_client(int fds){
     g_string_append(res, " 200 OK\r\n");
     build_response_hdr(hashSponse, res);
     if (g_strcmp0(method->str, "HEAD") != 0) {
+        printf("Sending:\n");
+        print_header(res->str, res->len);
         g_string_append(res, html->str);
     }
-    //printf("res: \n%s", res->str);
-    //printf("res-len: %d\n", res->len);
-
+    
     /* Send the header */
     if(write(fds, res->str, res->len) < 0) {
         perror("Write error");
@@ -242,13 +256,6 @@ void read_from_client(int fds){
             date, "000.000.000.000", 1230, method->str, URL->str);
     fclose(flog);
 
-    /* Zero terminate the message, otherwise
-       printf may access memory outside of the
-       string. */
-    message[n] = '\0';
-    /* Print the message to stdout and flush. */
-    fprintf(stdout, "Received:\n%s\n", message);
-    fflush(stdout);
 }
 
 int main(int argc, char **argv)
