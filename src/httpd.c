@@ -317,6 +317,7 @@ void read_from_client(int fds){
     printf("herna0\n");
     g_string_free(query, TRUE);
     printf("herna\n");
+    g_string_free(res, TRUE);
     printf("buid!!!!\n");
 }
 
