@@ -18,12 +18,18 @@
 
 #define LOGFILE "httpd.log"
 
+/**
+ *  Prints the header string
+ *
+ *  @param Char message[512]    Header string
+ *  @param int n                Size of header
+**/
 void print_header(char message[512], int n){
     /* Zero terminate the message, otherwise
        printf may access memory outside of the
        string. */
     message[n] = '\0';
-    /* Print the message to stdout and flush. */
+    /* Print the message */
     printf("%s\n", message);
     printf("----------------\n");
 }
@@ -43,7 +49,12 @@ void print_ht(GHashTable *ht) {
     printf("--------------------------------------\n");
 }
 
-/* Iterates through the hash table and returns a value if the key is found */
+/**
+ *  Iterates through the hash table and returns a value if the key is found
+ *  
+ *  @param GHashTable   A glib 2.0 hash table, contains header key/values
+ *  @param char         Hash table key being requested
+**/
 char* get_value(GHashTable *ht, char *keyToFind) {
     GHashTableIter iter;
     g_hash_table_iter_init(&iter, ht);
@@ -60,6 +71,13 @@ char* get_value(GHashTable *ht, char *keyToFind) {
     return NULL;
 }
 
+
+/**
+ *  Builds the response header for the http
+ *
+ *  @param GHashTable   A glib 2.0 hash table, contains header key/values
+ *  @param GString      A glib 2.0 string, a reference to the header string
+**/
 void build_response_hdr(GHashTable *ht, GString *res_hdr)
 {
     GHashTableIter iter;
@@ -74,6 +92,11 @@ void build_response_hdr(GHashTable *ht, GString *res_hdr)
     g_string_append(res_hdr, "\r\n\0");
 }
 
+/**
+ *  Reads the data from a file descriptor, proccesses it, and sends appropriate response
+ *  
+ *  @param int  A file descriptor
+**/
 void read_from_client(int fds){
     char message[512];
     char date[20];
@@ -252,7 +275,8 @@ void read_from_client(int fds){
 
     /* Open log file */
     FILE *flog = fopen(LOGFILE, "a");
-    fprintf(flog, "%s : %s:%d %s %s : 200 OK\n",
+    fprintf(flog, 
+            "%s : %s:%d %s %s : 200 OK\n",
             date, "000.000.000.000", 1230, method->str, URL->str);
     fclose(flog);
 
