@@ -31,7 +31,7 @@ void print_header(char message[512], int n){
        printf may access memory outside of the
        string. */
     message[n] = '\0';
-    /* Print the message */
+    /* Print the message  */
     printf("%s\n", message);
     printf("----------------\n");
 }
@@ -368,6 +368,7 @@ int main(int argc, char **argv)
                 }
             }
         } else {
+            // TODO: Need to fix the timeout somehow 
             if (open_socket) {
                 shutdown(connfd, SHUT_RDWR);
                 close(connfd);
