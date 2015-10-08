@@ -25,7 +25,7 @@ void print_ht(GHashTable *ht) {
     g_hash_table_iter_init(&iter, ht);
     gpointer key, value;
     while (g_hash_table_iter_next(&iter, &key, &value)) {
-        printf("Current Key: %s\nCurrent Value: %s\n\n", key, value);
+        printf("Current Key: %s\nCurrent Value: %s\n\n", (char*) key, (char*) value);
     }
     printf("--------------------------------------\nIteration finished.\n\n");
 }
@@ -61,13 +61,201 @@ void build_response_hdr(GHashTable *ht, GString *res_hdr)
     g_string_append(res_hdr, "\r\n\0");
 }
 
-int main(int argc, char **argv)
-{
-    int sockfd, port;
-    struct sockaddr_in server, client;
+int read_from_client(int fds){
     char message[512];
     char date[20];
     time_t t;
+
+
+    /* Receive one byte less than declared,
+       because it will be zero-termianted
+       below. */
+    ssize_t n = read(fds, message, sizeof(message) - 1);
+    message[n] = '\0'; 
+
+    /* Parse the Request Line */
+    char line[150];
+    int i, j;
+    for (i = 0; message[i] != '\r'; i++) {
+        line[i] = message[i];
+    }
+    line[i] = '\0';
+    GString *method = g_string_new(NULL),
+            *URL = g_string_new(NULL),
+            *version = g_string_new(NULL);
+    for (i = 0; line[i] != ' '; i++) {
+        g_string_append_c(method, line[i]);
+    }
+    for (i++; line[i] != ' '; i++) {
+        g_string_append_c(URL, line[i]);
+    }
+    for (i++; line[i] != '\0'; i++) {
+        g_string_append_c(version, line[i]);
+    }
+
+    /* Loop through the received header lines and parse them into a hash table */
+    GHashTable *ht = g_hash_table_new(NULL, NULL);
+    /* Response header hashtable */
+    GHashTable *hashSponse = g_hash_table_new(NULL, NULL);
+    gboolean EOH = FALSE, keyRead = TRUE;
+    int start;
+    GString *key = g_string_new(NULL), *value = g_string_new(NULL);
+    for(i += 2, start = i; !EOH; i++) {
+        /* end of the line */
+        if (message[i] == '\r') {
+            /* end the header */
+            if (message[i+2] == '\r') {
+                EOH = TRUE;
+            }
+            value = g_string_new(NULL);
+            for (j = 0; start < i; start++, j++) {
+                g_string_append_c(value, message[start]);
+            }
+            i++;
+            start = i + 1;
+            keyRead = TRUE;
+            g_hash_table_insert(ht, key->str, value->str);
+        } else if (message[i] == ':' && keyRead) {
+            keyRead = FALSE;
+            key = g_string_new(NULL);
+            for (j = 0; start < i; start++, j++) {
+                g_string_append_c(key, message[start]);
+            }
+            i++;
+            start = i + 1;
+        }
+    }
+    //print_ht(ht);
+
+    /* Fetch content from message */
+    GString *content = g_string_new(NULL);
+    for (i += 2; i < sizeof(message); i++) {
+        g_string_append_c(content, message[i]);
+    }
+    g_string_append_c(content, '\0');
+
+    /* Creating the html file in memory */
+    GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
+    int insert_point = 176;
+    GString *lineToAdd = g_string_new(NULL);
+    if (g_strcmp0(method->str, "POST") == 0) {
+        g_string_append(lineToAdd, "\n\t<p>");
+        g_string_append(lineToAdd, content->str);
+        g_string_append(lineToAdd, "</p>\n");
+    } 
+
+    /* split URL into args */
+    GString *uri = g_string_new(NULL);
+    GString *query = g_string_new(NULL);
+    gboolean isQ = FALSE;
+    int argcnt = 1;
+    for (i = 1; i < URL->len; i++) {
+        if (URL->str[i] == '?') {
+            isQ = TRUE;
+        } else if (isQ) {
+            g_string_append_c(query, URL->str[i]);
+            if (URL->str[i] == '&') argcnt++;
+        } else {
+            g_string_append_c(uri, URL->str[i]);
+        }
+    }
+    printf("uri: %s\n", uri->str);
+    if (g_strcmp0(uri->str, "test") == 0) {
+        gchar **arse = g_strsplit(query->str, "&", 0);
+        printf("query: %s\n", query->str);
+        g_string_append(lineToAdd, "\n\t<p>");
+        for (i = 0; i < argcnt; i++) {
+            printf("arse[%d]: %s\n", i, arse[i]);
+            g_string_append(lineToAdd, arse[i]);
+            g_string_append(lineToAdd, "<br>");
+        }
+        g_string_append(lineToAdd, "</p>\n");
+    } else if (g_strcmp0(uri->str, "color") == 0) {
+        insert_point = 142;
+        gchar **bg;
+        char* color;
+        if (query->str[0] == 'b' && query->str[1] == 'g') {
+            bg = g_strsplit(query->str, "=", 0);
+            GString *cookie = g_string_new("color=");
+            g_string_append(cookie, bg[1]);
+            color = bg[1];
+            g_hash_table_insert(hashSponse, "Set-cookie", cookie->str);
+        } else {
+            char *cookieValue = get_value(ht, "Cookie");
+            if (cookieValue != NULL) {
+                printf("Found %s!\n", cookieValue);
+                bg = g_strsplit(g_string_new(cookieValue)->str, "=", 0);
+                color = bg[1];
+            } else {
+                color = "white";
+            }
+        }
+        g_string_append(lineToAdd, " style=\"background-color: ");
+        g_string_append(lineToAdd, color);
+        g_string_append(lineToAdd, "\"");
+
+    }
+    g_string_insert(html, insert_point, lineToAdd->str);
+
+    t = time(NULL);
+    strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
+
+    /* Create a new hash table with data to put into response header */
+    g_hash_table_insert(hashSponse, "Date", date);
+    g_hash_table_insert(hashSponse, "Content-Type", "text/html; charset=iso-8859-1");
+    g_hash_table_insert(hashSponse, "Server", "Nilli/0.2000");
+    char cl[10];
+    sprintf(cl, "%d", (int)html->len);
+    g_hash_table_insert(hashSponse, "Content-Length", cl);
+    print_ht(hashSponse);
+
+
+    /* Make the response header */
+    GString *res = g_string_new(version->str);
+    g_string_append(res, " 200 OK\r\n");
+    build_response_hdr(hashSponse, res);
+    if (g_strcmp0(method->str, "HEAD") != 0) {
+        g_string_append(res, html->str);
+    }
+    //printf("res: \n%s", res->str);
+    //printf("res-len: %d\n", res->len);
+
+    /* Send the header */
+    if(write(fds, res->str, res->len) < 0) {
+        perror("Write error");
+        exit(1);
+    }
+
+    /* We should close the connection if requested. */
+    char *connec = get_value(ht, "Connection");
+    //printf("connec: %s\n", connec);
+    if (connec != NULL && 
+            (strcmp(connec, "close") == 0 || 
+            strcmp(connec, "keep-alive") != 0)) { 
+        shutdown(fds, SHUT_RDWR);
+        //printf("You have been terminated by the terminator\n");
+    }
+
+    /* Open log file */
+    FILE *flog = fopen(LOGFILE, "a");
+    fprintf(flog, "%s : %s:%d %s %s : 200 OK\n",
+            date, "000.000.000.000", 1230, method->str, URL->str);
+    fclose(flog);
+
+    /* Zero terminate the message, otherwise
+       printf may access memory outside of the
+       string. */
+    message[n] = '\0';
+    /* Print the message to stdout and flush. */
+    fprintf(stdout, "Received:\n%s\n", message);
+    fflush(stdout);
+}
+
+int main(int argc, char **argv)
+{
+    int sockfd, port, i;
+    struct sockaddr_in server, client;
+    fd_set rfds, afds;
     gboolean open_socket = FALSE;
     
     /* Read in command line arguments */
@@ -77,7 +265,7 @@ int main(int argc, char **argv)
     }
     port = (int) atoi(argv[1]);
     
-    /* Create and bind a UDP socket */
+    /* Create and bind a socket */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
@@ -92,223 +280,51 @@ int main(int argc, char **argv)
      * 1 connection to queue for simplicity.
      */
     listen(sockfd, 1);
-
+    
+    /* Check whether there is data on the socket fd. */
+    FD_ZERO(&afds);
+    FD_SET(sockfd, &afds);
+    
     for (;;) {
-        fd_set rfds;
         struct timeval tv;
         int retval;
         int connfd;
-        
-        /* Check whether there is data on the socket fd. */
-        FD_ZERO(&rfds);
-        FD_SET(sockfd, &rfds);
 
+        rfds = afds;
+        
         /* Wait for five seconds. */
         tv.tv_sec = 30;
         tv.tv_usec = 0;
-        retval = select(sockfd + 1, &rfds, NULL, NULL, &tv);
+        retval = select(FD_SETSIZE, &rfds, NULL, NULL, &tv);
 
         if (retval == -1) {
             perror("select()");
         } else if (retval > 0) {
-            /* Data is available, receive it. */
-            assert(FD_ISSET(sockfd, &rfds));
+            for(i = 0; i < FD_SETSIZE; ++i){
+                if(FD_ISSET(i, &rfds)){
+                    if(i == sockfd){
+                        /* Data is available, receive it. */
+                        assert(FD_ISSET(sockfd, &rfds));
 
-            /* Copy to len, since recvfrom may change it. */
-            socklen_t len = (socklen_t) sizeof(client);
+                        /* Copy to len, since recvfrom may change it. */
+                        socklen_t len = (socklen_t) sizeof(client);
 
-            /* For TCP connectios, we first have to accept. */
-            connfd = accept(sockfd, (struct sockaddr *) &client,
-                    &len);
-            open_socket = TRUE;
+                        /* For TCP connectios, we first have to accept. */
+                        connfd = accept(sockfd, (struct sockaddr *) &client, &len);
+                        open_socket = TRUE;
 
-            /* put client address and port nr intp variables */
-            char *client_addr = inet_ntoa(client.sin_addr);
-            int client_port = ntohs(client.sin_port);
-
-            /* Receive one byte less than declared,
-               because it will be zero-termianted
-               below. */
-            ssize_t n = read(connfd, message, sizeof(message) - 1);
-            message[n] = '\0'; 
-            
-            /* Parse the Request Line */
-            char line[150];
-            int i, j;
-            for (i = 0; message[i] != '\r'; i++) {
-                line[i] = message[i];
-            }
-            line[i] = '\0';
-            GString *method = g_string_new(NULL),
-                       *URL = g_string_new(NULL),
-                   *version = g_string_new(NULL);
-            for (i = 0; line[i] != ' '; i++) {
-                g_string_append_c(method, line[i]);
-            }
-            for (i++; line[i] != ' '; i++) {
-                g_string_append_c(URL, line[i]);
-            }
-            for (i++; line[i] != '\0'; i++) {
-                g_string_append_c(version, line[i]);
-            }
-
-            /* Loop through the received header lines and parse them into a hash table */
-            GHashTable *ht = g_hash_table_new(NULL, NULL);
-            /* Response header hashtable */
-            GHashTable *hashSponse = g_hash_table_new(NULL, NULL);
-            gboolean EOH = FALSE, keyRead = TRUE;
-            int start;
-            GString *key = g_string_new(NULL), *value = g_string_new(NULL);
-            for(i += 2, start = i; !EOH; i++) {
-                /* end of the line */
-                if (message[i] == '\r') {
-                    /* end the header */
-                    if (message[i+2] == '\r') {
-                        EOH = TRUE;
+                        /* put client address and port nr intp variables */
+                        char *client_addr = inet_ntoa(client.sin_addr);
+                        int client_port = ntohs(client.sin_port);
+                        FD_SET(connfd, &afds);
                     }
-                    value = g_string_new(NULL);
-                    for (j = 0; start < i; start++, j++) {
-                        g_string_append_c(value, message[start]);
-                    }
-                    i++;
-                    start = i + 1;
-                    keyRead = TRUE;
-                    g_hash_table_insert(ht, key->str, value->str);
-                } else if (message[i] == ':' && keyRead) {
-                    keyRead = FALSE;
-                    key = g_string_new(NULL);
-                    for (j = 0; start < i; start++, j++) {
-                        g_string_append_c(key, message[start]);
-                    }
-                    i++;
-                    start = i + 1;
-                }
-            }
-            //print_ht(ht);
-
-            /* Fetch content from message */
-            GString *content = g_string_new(NULL);
-            for (i += 2; i < sizeof(message); i++) {
-                g_string_append_c(content, message[i]);
-            }
-            g_string_append_c(content, '\0');
-
-            /* Creating the html file in memory */
-            GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
-            int insert_point = 176;
-            GString *lineToAdd = g_string_new(NULL);
-            if (g_strcmp0(method->str, "POST") == 0) {
-                g_string_append(lineToAdd, "\n\t<p>");
-                g_string_append(lineToAdd, content->str);
-                g_string_append(lineToAdd, "</p>\n");
-            } 
-
-            /* split URL into args */
-            GString *uri = g_string_new(NULL);
-            GString *query = g_string_new(NULL);
-            gboolean isQ = FALSE;
-            int argcnt = 1;
-            for (i = 1; i < URL->len; i++) {
-                if (URL->str[i] == '?') {
-                    isQ = TRUE;
-                } else if (isQ) {
-                    g_string_append_c(query, URL->str[i]);
-                    if (URL->str[i] == '&') argcnt++;
-                } else {
-                    g_string_append_c(uri, URL->str[i]);
-                }
-            }
-            printf("uri: %s\n", uri->str);
-            if (g_strcmp0(uri->str, "test") == 0) {
-                gchar **arse = g_strsplit(query->str, "&", 0);
-                printf("query: %s\n", query->str);
-                g_string_append(lineToAdd, "\n\t<p>");
-                for (i = 0; i < argcnt; i++) {
-                    printf("arse[%d]: %s\n", i, arse[i]);
-                    g_string_append(lineToAdd, arse[i]);
-                    g_string_append(lineToAdd, "<br>");
-                }
-                g_string_append(lineToAdd, "</p>\n");
-            } else if (g_strcmp0(uri->str, "color") == 0) {
-                insert_point = 142;
-                gchar **bg;
-                char* color;
-                if (query->str[0] == 'b' && query->str[1] == 'g') {
-                    bg = g_strsplit(query->str, "=", 0);
-                    GString *cookie = g_string_new("color=");
-                    g_string_append(cookie, bg[1]);
-                    color = bg[1];
-                    g_hash_table_insert(hashSponse, "Set-cookie", cookie->str);
-                } else {
-                    char *cookieValue = get_value(ht, "Cookie");
-                    if (cookieValue != NULL) {
-                        printf("Found %s!\n", cookieValue);
-                        bg = g_strsplit(g_string_new(cookieValue)->str, "=", 0);
-                        color = bg[1];
-                    } else {
-                        color = "white";
+                    else{
+                        read_from_client(i);
+                        close(i);
+                        FD_CLR(i, &afds);
                     }
                 }
-                g_string_append(lineToAdd, " style=\"background-color: ");
-                g_string_append(lineToAdd, color);
-                g_string_append(lineToAdd, "\"");
- 
             }
-            g_string_insert(html, insert_point, lineToAdd->str);
-
-            t = time(NULL);
-            strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
-            
-            /* Create a new hash table with data to put into response header */
-            g_hash_table_insert(hashSponse, "Date", date);
-            g_hash_table_insert(hashSponse, "Content-Type", "text/html; charset=iso-8859-1");
-            g_hash_table_insert(hashSponse, "Server", "Nilli/0.2000");
-            char cl[10];
-            sprintf(cl, "%d", html->len);
-            g_hash_table_insert(hashSponse, "Content-Length", cl);
-            print_ht(hashSponse);
-
-
-            /* Make the response header */
-            GString *res = g_string_new(version->str);
-            g_string_append(res, " 200 OK\r\n");
-            build_response_hdr(hashSponse, res);
-            if (g_strcmp0(method->str, "HEAD") != 0) {
-                g_string_append(res, html->str);
-            }
-            //printf("res: \n%s", res->str);
-            //printf("res-len: %d\n", res->len);
-
-            /* Send the header */
-            if(write(connfd, res->str, res->len) < 0) {
-                perror("Write error");
-                exit(1);
-            }
-
-            /* We should close the connection if requested. */
-            char *connec = get_value(ht, "Connection");
-            //printf("connec: %s\n", connec);
-            if (connec != NULL && (strcmp(connec, "close") == 0 || 
-                strcmp(connec, "keep-alive") != 0)) { 
-                shutdown(connfd, SHUT_RDWR);
-                close(connfd);
-                //printf("You have been terminated by the terminator\n");
-                open_socket = FALSE;
-            }
-
-            /* Open log file */
-            FILE *flog = fopen(LOGFILE, "a");
-            fprintf(flog, "%s : %s:%d %s %s : 200 OK\n",
-                date, client_addr, client_port, method->str, URL->str);
-            fclose(flog);
-
-            /* Zero terminate the message, otherwise
-               printf may access memory outside of the
-               string. */
-            message[n] = '\0';
-            /* Print the message to stdout and flush. */
-            fprintf(stdout, "Received:\n%s\n", message);
-            fflush(stdout);
         } else {
             if (open_socket) {
                 shutdown(connfd, SHUT_RDWR);
