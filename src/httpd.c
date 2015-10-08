@@ -61,7 +61,7 @@ void build_response_hdr(GHashTable *ht, GString *res_hdr)
     g_string_append(res_hdr, "\r\n\0");
 }
 
-int read_from_client(int fds){
+void read_from_client(int fds){
     char message[512];
     char date[20];
     time_t t;
