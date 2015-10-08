@@ -299,6 +299,7 @@ void read_from_client(int fds){
     /* Free the allocated memory */
     destroy_ht(ht);
     //destroy_ht(hashSponse);
+    g_hash_table_destroy(hashSponse);
     printf("herna\n");
     g_string_free(method, TRUE);
     printf("herna2\n");
