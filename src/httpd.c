@@ -292,10 +292,6 @@ void read_from_client(int fds){
             date, "---.---.---.---", 1234, method->str, URL->str);
     fclose(flog);
 
-    /* Print the message to stdout and flush. */
-    fprintf(stdout, "Received:\n%s\n", message);
-    fflush(stdout);
-
     /* Free the allocated memory */
     destroy_ht(ht);
     //destroy_ht(hashSponse);
@@ -376,8 +372,10 @@ int main(int argc, char **argv)
 
                         /* put client address and port nr intp variables 
                            TODO: WE NEED TO FIX THIS, WE LOSE THE DATA, NEEDED IN LOG FILE */
-                        char *client_addr = inet_ntoa(client.sin_addr);
-                        int client_port = ntohs(client.sin_port);
+                        //char *client_addr = inet_ntoa(client.sin_addr);
+                        //int client_port = ntohs(client.sin_port);
+                        //printf("i: %d", connfd);
+                        //printf("\tconnfd: %d\n", connfd);
 
                         /* Add the file descriptor to the active set */
                         FD_SET(connfd, &afds);
