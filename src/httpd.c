@@ -300,25 +300,15 @@ void read_from_client(int fds){
     destroy_ht(ht);
     //destroy_ht(hashSponse);
     g_hash_table_destroy(hashSponse);
-    printf("herna\n");
     g_string_free(method, TRUE);
-    printf("herna2\n");
     g_string_free(URL, TRUE);
-    printf("herna3\n");
     g_string_free(version, TRUE);
-    printf("herna6\n");
     g_string_free(content, TRUE);
-    printf("herna7\n");
     g_string_free(html, TRUE);
-    printf("herna8\n");
     g_string_free(lineToAdd, TRUE);
-    printf("herna9\n");
     g_string_free(uri, TRUE);
-    printf("herna0\n");
     g_string_free(query, TRUE);
-    printf("herna\n");
     g_string_free(res, TRUE);
-    printf("buid!!!!\n");
 }
 
 int main(int argc, char **argv)
