@@ -30,6 +30,18 @@ void print_ht(GHashTable *ht) {
     printf("--------------------------------------\nIteration finished.\n\n");
 }
 
+/* Iterates through the hash table and frees all memory allocated for keys and values */
+void destroy_ht(GHashTable *ht) {
+    GHashTableIter iter;
+    g_hash_table_iter_init(&iter, ht);
+    gpointer key, value;
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        g_free(key);
+        g_free(value);
+    }
+    g_hash_table_destroy(ht);
+}
+
 /* Iterates through the hash table and returns a value if the key is found */
 char* get_value(GHashTable *ht, char *keyToFind) {
     GHashTableIter iter;
@@ -125,7 +137,6 @@ void read_from_client(int fds){
             start = i + 1;
         }
     }
-    //print_ht(ht);
 
     /* Fetch content from message */
     GString *content = g_string_new(NULL);
@@ -179,12 +190,12 @@ void read_from_client(int fds){
             GString *cookie = g_string_new("color=");
             g_string_append(cookie, bg[1]);
             color = bg[1];
-            g_hash_table_insert(hashSponse, "Set-cookie", cookie->str);
+            g_hash_table_insert(hashSponse, g_string_new("Set-cookie")->str, cookie->str);
         } else {
             char *cookieValue = get_value(ht, "Cookie");
             if (cookieValue != NULL) {
                 printf("Found %s!\n", cookieValue);
-                bg = g_strsplit(g_string_new(cookieValue)->str, "=", 0);
+                bg = g_strsplit(cookieValue, "=", 0);
                 color = bg[1];
             } else {
                 color = "white";
@@ -193,7 +204,7 @@ void read_from_client(int fds){
         g_string_append(lineToAdd, " style=\"background-color: ");
         g_string_append(lineToAdd, color);
         g_string_append(lineToAdd, "\"");
-
+        g_strfreev(bg);
     }
     g_string_insert(html, insert_point, lineToAdd->str);
 
@@ -201,12 +212,12 @@ void read_from_client(int fds){
     strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
 
     /* Create a new hash table with data to put into response header */
-    g_hash_table_insert(hashSponse, "Date", date);
-    g_hash_table_insert(hashSponse, "Content-Type", "text/html; charset=iso-8859-1");
-    g_hash_table_insert(hashSponse, "Server", "Nilli/0.2000");
+    g_hash_table_insert(hashSponse, g_string_new("Date")->str, g_string_new(date)->str);
+    g_hash_table_insert(hashSponse, g_string_new("Content-Type")->str, g_string_new("text/html; charset=iso-8859-1")->str);
+    g_hash_table_insert(hashSponse, g_string_new("Server")->str, g_string_new("Nilli/0.2000")->str);
     char cl[10];
     sprintf(cl, "%d", (int)html->len);
-    g_hash_table_insert(hashSponse, "Content-Length", cl);
+    g_hash_table_insert(hashSponse, g_string_new("Content-Length")->str, g_string_new(cl)->str);
     print_ht(hashSponse);
 
 
@@ -228,12 +239,10 @@ void read_from_client(int fds){
 
     /* We should close the connection if requested. */
     char *connec = get_value(ht, "Connection");
-    //printf("connec: %s\n", connec);
     if (connec != NULL && 
             (strcmp(connec, "close") == 0 || 
             strcmp(connec, "keep-alive") != 0)) { 
         shutdown(fds, SHUT_RDWR);
-        //printf("You have been terminated by the terminator\n");
     }
 
     /* Open log file */
@@ -249,6 +258,33 @@ void read_from_client(int fds){
     /* Print the message to stdout and flush. */
     fprintf(stdout, "Received:\n%s\n", message);
     fflush(stdout);
+
+    /* Free the allocated memory */
+    destroy_ht(ht);
+    destroy_ht(hashSponse);
+    printf("herna\n");
+    g_string_free(method, TRUE);
+    printf("herna2\n");
+    g_string_free(URL, TRUE);
+    printf("herna3\n");
+    g_string_free(version, TRUE);
+    printf("herna4\n");
+    g_string_free(key, TRUE);
+    printf("herna5\n");
+    g_string_free(value, TRUE);
+    printf("herna6\n");
+    g_string_free(content, TRUE);
+    printf("herna7\n");
+    g_string_free(html, TRUE);
+    printf("herna8\n");
+    g_string_free(lineToAdd, TRUE);
+    printf("herna9\n");
+    g_string_free(uri, TRUE);
+    printf("herna0\n");
+    g_string_free(query, TRUE);
+    printf("herna\n");
+    //g_string_free(res, TRUE);
+    printf("buid!!!!\n");
 }
 
 int main(int argc, char **argv)
@@ -300,9 +336,9 @@ int main(int argc, char **argv)
         if (retval == -1) {
             perror("select()");
         } else if (retval > 0) {
-            for(i = 0; i < FD_SETSIZE; ++i){
-                if(FD_ISSET(i, &rfds)){
-                    if(i == sockfd){
+            for (i = 0; i < FD_SETSIZE; ++i){
+                if (FD_ISSET(i, &rfds)){
+                    if (i == sockfd){
                         /* Data is available, receive it. */
                         assert(FD_ISSET(sockfd, &rfds));
 
@@ -317,8 +353,7 @@ int main(int argc, char **argv)
                         char *client_addr = inet_ntoa(client.sin_addr);
                         int client_port = ntohs(client.sin_port);
                         FD_SET(connfd, &afds);
-                    }
-                    else{
+                    } else {
                         read_from_client(i);
                         close(i);
                         FD_CLR(i, &afds);
@@ -330,7 +365,6 @@ int main(int argc, char **argv)
                 shutdown(connfd, SHUT_RDWR);
                 close(connfd);
                 open_socket = FALSE;
-                //printf("Termination of the fraction erection\n");
             }
             fprintf(stdout, "No message in 30 seconds.\n");
             fflush(stdout);
