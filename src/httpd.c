@@ -25,7 +25,7 @@ void print_ht(GHashTable *ht) {
     g_hash_table_iter_init(&iter, ht);
     gpointer key, value;
     while (g_hash_table_iter_next(&iter, &key, &value)) {
-        printf("Current Key: %s\nCurrent Value: %s\n\n", (char*) key, (char*) value);
+        printf("%s: %s\n", (char*) key, (char*) value);
     }
     printf("--------------------------------------\nIteration finished.\n\n");
 }
