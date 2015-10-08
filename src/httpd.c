@@ -17,6 +17,8 @@
 #include <glib.h>
 
 #define LOGFILE "httpd.log"
+#define HTMLTEMPLATE "<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n"
+ 
 
 /**
  *  Prints the header string
@@ -172,7 +174,7 @@ void read_from_client(int fds){
     g_string_append_c(content, '\0');
 
     /* Creating the html file in memory */
-    GString *html = g_string_new("<!DOCTYPE html>\n<html>\n<head>\n\t<meta charset=\"utf-8\">\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n\t<title>PA2</title>\n</head>\n<body>\n\t<p>Nerders With Skapgerders</p>\n</body>\n</html>\n");
+    GString *html = g_string_new(HTMLTEMPLATE);
     int insert_point = 176;
     GString *lineToAdd = g_string_new(NULL);
     if (g_strcmp0(method->str, "POST") == 0) {
