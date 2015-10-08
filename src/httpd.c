@@ -1,5 +1,10 @@
-/* A s is the time taken from your computerhttp server
+/**
+ *  A HTTP server
  *
+ *  When creating the parallel connection setup, we lost the client portnr, and ip address,
+ *  and timeout also no longer worked as as the original setup no longer works.
+ *
+ *  Other than that, to our perspective, it seems that we managed to create a HTTP server, that can serve multiple clients fairly
  */
 
 #include <assert.h>
