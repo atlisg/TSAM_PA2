@@ -184,7 +184,7 @@ int main(int argc, char **argv)
                     start = i + 1;
                 }
             }
-            print_ht(ht);
+            //print_ht(ht);
 
             /* Fetch content from message */
             GString *content = g_string_new(NULL);
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
                 g_string_append(lineToAdd, "</p>\n");
             } 
 
-           /* split URL into args */
+            /* split URL into args */
             GString *uri = g_string_new(NULL);
             GString *query = g_string_new(NULL);
             gboolean isQ = FALSE;
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
             char cl[10];
             sprintf(cl, "%d", html->len);
             g_hash_table_insert(hashSponse, "Content-Length", cl);
-            //print_ht(hashSponse);
+            print_ht(hashSponse);
 
 
             /* Make the response header */
