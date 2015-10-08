@@ -163,11 +163,11 @@ int read_from_client(int fds){
     if (g_strcmp0(uri->str, "test") == 0) {
         gchar **arse = g_strsplit(query->str, "&", 0);
         printf("query: %s\n", query->str);
-        g_string_append(lineToAdd, "\n\t<p>");
+        g_string_append(lineToAdd, "\n\t<p>\n\t");
         for (i = 0; i < argcnt; i++) {
             printf("arse[%d]: %s\n", i, arse[i]);
             g_string_append(lineToAdd, arse[i]);
-            g_string_append(lineToAdd, "<br>");
+            g_string_append(lineToAdd, "<br>\n\t");
         }
         g_string_append(lineToAdd, "</p>\n");
     } else if (g_strcmp0(uri->str, "color") == 0) {

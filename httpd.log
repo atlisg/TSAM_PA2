@@ -102,3 +102,7 @@
 2015-10-08T17:27:10 : 127.0.0.1:49810 GET /color : 200 OK
 2015-10-08T17:27:28 : 127.0.0.1:49817 GET /color?bg=red : 200 OK
 2015-10-08T17:31:43 : 127.0.0.1:49907 GET /color : 200 OK
+2015-10-08T20:21:13 : 000.000.000.000:1230 GET /test?nonni=name&aegir=awesome&hae=atli : 200 OK
+2015-10-08T20:21:44 : 000.000.000.000:1230 HEAD /test?nonni=name&aegir=awesome&hae=atli : 200 OK
+2015-10-08T20:22:00 : 000.000.000.000:1230 GET /color?bg=red : 200 OK
+2015-10-08T20:22:07 : 000.000.000.000:1230 GET /color : 200 OK
