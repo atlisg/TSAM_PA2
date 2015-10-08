@@ -304,10 +304,6 @@ void read_from_client(int fds){
     g_string_free(URL, TRUE);
     printf("herna3\n");
     g_string_free(version, TRUE);
-    printf("herna4\n");
-    g_string_free(key, TRUE);
-    printf("herna5\n");
-    g_string_free(value, TRUE);
     printf("herna6\n");
     g_string_free(content, TRUE);
     printf("herna7\n");
@@ -319,7 +315,6 @@ void read_from_client(int fds){
     printf("herna0\n");
     g_string_free(query, TRUE);
     printf("herna\n");
-    //g_string_free(res, TRUE);
     printf("buid!!!!\n");
 }
 
