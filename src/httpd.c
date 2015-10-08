@@ -74,11 +74,9 @@ char* get_value(GHashTable *ht, char *keyToFind) {
     g_hash_table_iter_init(&iter, ht);
     gpointer key, value;
     
-    GString *returnValue = g_string_new(NULL);
     while (g_hash_table_iter_next(&iter, &key, &value)) {
         if (strcmp(key, keyToFind) == 0) {
-            returnValue = g_string_new(value);
-            return returnValue->str;
+            return (char *) value;
         }
     }
 
@@ -151,7 +149,7 @@ void read_from_client(int fds){
     GHashTable *hashSponse = g_hash_table_new(NULL, NULL);
     gboolean EOH = FALSE, keyRead = TRUE;
     int start;
-    GString *key = g_string_new(NULL), *value = g_string_new(NULL);
+    GString *key, *value;
     for(i += 2, start = i; !EOH; i++) {
         /* end of the line */
         if (message[i] == '\r') {
@@ -167,6 +165,8 @@ void read_from_client(int fds){
             start = i + 1;
             keyRead = TRUE;
             g_hash_table_insert(ht, key->str, value->str);
+            g_string_free(key, FALSE);
+            g_string_free(value, FALSE);
         } else if (message[i] == ':' && keyRead) {
             keyRead = FALSE;
             key = g_string_new(NULL);
