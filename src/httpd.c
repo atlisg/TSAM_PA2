@@ -279,7 +279,7 @@ void read_from_client(int fds){
     FILE *flog = fopen(LOGFILE, "a");
     fprintf(flog, 
             "%s : %s:%d %s %s : 200 OK\n",
-            date, "000.000.000.000", 1230, method->str, URL->str);
+            date, "---.---.---.---", 1234, method->str, URL->str);
     fclose(flog);
 
 }
