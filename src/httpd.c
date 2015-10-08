@@ -230,7 +230,8 @@ void read_from_client(int fds){
             GString *cookie = g_string_new("color=");
             g_string_append(cookie, bg[1]);
             color = bg[1];
-            g_hash_table_insert(hashSponse, g_string_new("Set-cookie")->str, cookie->str);
+            g_hash_table_insert(hashSponse, "Set-cookie", cookie->str);
+            g_string_free(cookie, FALSE);
         } else {
             char *cookieValue = get_value(ht, "Cookie");
             if (cookieValue != NULL) {
@@ -252,12 +253,12 @@ void read_from_client(int fds){
     strftime(date, sizeof(date), "%FT%T\n", localtime(&t));
 
     /* Create a new hash table with data to put into response header */
-    g_hash_table_insert(hashSponse, g_string_new("Date")->str, g_string_new(date)->str);
-    g_hash_table_insert(hashSponse, g_string_new("Content-Type")->str, g_string_new("text/html; charset=iso-8859-1")->str);
-    g_hash_table_insert(hashSponse, g_string_new("Server")->str, g_string_new("Nilli/0.2000")->str);
+    g_hash_table_insert(hashSponse, "Date", date);
+    g_hash_table_insert(hashSponse, "Content-Type", "text/html; charset=iso-8859-1");
+    g_hash_table_insert(hashSponse, "Server", "Nilli/0.2000");
     char cl[10];
     sprintf(cl, "%d", (int)html->len);
-    g_hash_table_insert(hashSponse, g_string_new("Content-Length")->str, g_string_new(cl)->str);
+    g_hash_table_insert(hashSponse, "Content-Length", cl);
     //print_ht(hashSponse);
 
     /* Make the response header */
@@ -297,7 +298,7 @@ void read_from_client(int fds){
 
     /* Free the allocated memory */
     destroy_ht(ht);
-    destroy_ht(hashSponse);
+    //destroy_ht(hashSponse);
     printf("herna\n");
     g_string_free(method, TRUE);
     printf("herna2\n");
